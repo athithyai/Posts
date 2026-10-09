@@ -23,6 +23,10 @@ SOFTWARE.
 Text and figures (the README.md and linkedin.md files, and everything under
 figures/): CC BY 4.0, https://creativecommons.org/licenses/by/4.0/
 
+Font: common/fonts/SpaceGrotesk-*.ttf are static instances (Regular, Medium,
+Bold) of Space Grotesk, Copyright 2020 The Space Grotesk Project Authors,
+licensed under the SIL Open Font License 1.1 (see common/fonts/SpaceGrotesk-OFL.txt).
+
 Third-party data used by the code keeps its own licence: PDOK luchtfoto
 (CC BY 4.0, Beeldmateriaal Nederland), CBS NBBG publication files (CC BY 4.0),
 BAG (CC0), Copernicus Sentinel-2 (free and open, via Microsoft Planetary

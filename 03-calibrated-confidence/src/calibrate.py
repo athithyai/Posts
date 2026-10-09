@@ -26,6 +26,7 @@ sys.path.insert(0, str(HERE.parent))
 from common import style  # noqa: E402
 
 SEED = 24
+DETECTION_THRESHOLD = 0.30   # pixel threshold the candidates were cut at (BT24 rerank.sh)
 N_FOLDS = 5
 N_BINS = 10
 N_BOOT = 2000
@@ -150,7 +151,7 @@ def main():
 
     # What the confidence promises versus what an interpreter gets.
     promise = []
-    for name in ("detector_raw", "detector_isotonic", "reranker_isotonic"):
+    for name in ("detector_raw", "detector_platt", "detector_isotonic", "reranker_isotonic"):
         p = scores[name]
         for t in (0.5, 0.6, 0.7, 0.8, 0.9):
             m = p >= t
@@ -166,14 +167,14 @@ def main():
     for s in pd.unique(sheets):
         m = sheets == s
         row = {"sheet": s, "n_candidates": int(m.sum()), "n_real": int(y[m].sum())}
-        for name in ("detector_raw", "detector_isotonic", "reranker_isotonic"):
+        for name in ("detector_raw", "detector_platt", "detector_isotonic", "reranker_isotonic"):
             row[f"expected_{name}"] = float(scores[name][m].sum())
         sheet_rows.append(row)
     sh = pd.DataFrame(sheet_rows).sort_values("n_candidates", ascending=False).reset_index(drop=True)
     # Sheet names locate internal labels; publish an anonymous id instead.
     sh["sheet"] = [f"S{i + 1:02d}" for i in range(len(sh))]
     count = {}
-    for name in ("detector_raw", "detector_isotonic", "reranker_isotonic"):
+    for name in ("detector_raw", "detector_platt", "detector_isotonic", "reranker_isotonic"):
         e = sh[f"expected_{name}"] - sh.n_real
         count[name] = {"total_expected": float(sh[f"expected_{name}"].sum()),
                        "total_real": int(sh.n_real.sum()),
@@ -202,49 +203,55 @@ def main():
 def figures(scores, y, rel, sh, res, fig_dir):
     import matplotlib.pyplot as plt
     style.apply()
+    raw, cal = "detector_raw", "detector_platt"
 
-    # 1. Reliability diagram: the headline.
-    fig, ax = plt.subplots(figsize=(6.2, 5.6))
-    ax.plot([0, 1], [0, 1], color=style.MUTED, ls="--", lw=1, label="perfectly calibrated")
-    show = [("detector_raw", style.CLAY, "detector confidence (as shipped)"),
-            ("detector_isotonic", style.TEAL, "detector, isotonic-calibrated"),
-            ("reranker_isotonic", style.LEAF, "re-ranker, isotonic-calibrated")]
-    for name, col, lab in show:
+    # 1. The headline: what the score says vs what is true.
+    fig, ax = plt.subplots(figsize=(6, 5.4))
+    ax.plot([0, 1], [0, 1], color=style.LIGHT, lw=1.2)
+    ax.text(0.96, 0.9, "honest", color=style.GREY, fontsize=9, ha="right", rotation=42)
+    for name, col in ((raw, style.CLAY), (cal, style.TEAL)):
         r = rel[rel.score == name]
-        e = res["metrics"][name]["ece"]
-        ax.errorbar(r.mean_score, r.observed, yerr=[r.observed - r.lo, r.hi - r.observed],
-                    color=col, marker="o", ms=5, lw=1.8, capsize=2.5, label=f"{lab}  (ECE {e:.3f})")
-    ax.axhline(y.mean(), color=style.INK, lw=0.8, ls=":",
-               label=f"share of all candidates that are real ({y.mean():.0%})")
-    ax.set(xlim=(0, 1), ylim=(0, 1), xlabel="stated confidence (mean per bin)",
-           ylabel="observed share that is a real site",
-           title="A confidence of 0.8 did not mean 80%")
-    ax.legend(loc="upper left", fontsize=8.5)
+        ax.fill_between(r.mean_score, r.lo, r.hi, color=col, alpha=0.13, lw=0)
+        ax.plot(r.mean_score, r.observed, color=col, marker="o", ms=4.5, lw=2.2)
+    r0, r1 = rel[rel.score == raw], rel[rel.score == cal]
+    ax.text(r0.mean_score.iloc[-1] + 0.02, r0.observed.iloc[-1] - 0.06,
+            f"as shipped\nerror {res['metrics'][raw]['ece']:.2f}", color=style.CLAY, fontsize=10, va="top")
+    ax.text(0.05, 0.72, f"after 2-parameter\ncalibration\nerror {res['metrics'][cal]['ece']:.2f}",
+            color=style.TEAL, fontsize=10, va="center", ha="left")
+    ax.set(xlim=(0, 1), ylim=(0, 1), xlabel="what the score says",
+           ylabel="share that an interpreter confirmed")
+    ax.set_title("When the model said 0.8, it was right about 40% of the time")
     style.save(fig, fig_dir / "reliability.png")
 
-    # 2. Where the raw scores sit: the cause.
-    fig, ax = plt.subplots(figsize=(6.6, 3.4))
+    # 2. Why: every candidate already cleared the 0.30 pixel threshold (BT24 rerank.sh).
+    fig, ax = plt.subplots(figsize=(6.4, 3.2))
     bins = np.linspace(0, 1, 41)
-    ax.hist(scores["detector_raw"][y == 0], bins, color=style.MUTED, alpha=0.85, label="not a site")
-    ax.hist(scores["detector_raw"][y == 1], bins, color=style.CLAY, alpha=0.85, label="real site")
-    ax.set(xlabel="detector confidence", ylabel="candidates",
-           title="Every candidate starts above the threshold, so scores pile up high")
-    ax.legend()
+    ax.hist(scores[raw][y == 0], bins, color=style.LIGHT, label="not confirmed")
+    ax.hist(scores[raw][y == 1], bins, color=style.TEAL, label="confirmed")
+    ax.axvline(DETECTION_THRESHOLD, color=style.INK, lw=0.8, ls=":")
+    ax.text(DETECTION_THRESHOLD - 0.01, ax.get_ylim()[1] * 0.45, "pixel\nthreshold", ha="right",
+            fontsize=8.5, color=style.INK)
+    ax.set(xlabel="score as shipped", ylabel="candidates", xlim=(0, 1))
+    ax.legend(loc="upper left", fontsize=9)
+    ax.set_title("Every candidate is an average of pixels that already passed 0.30")
     style.save(fig, fig_dir / "score_histogram.png")
 
-    # 3. Counting sites per sheet from probabilities alone.
+    # 3. Planning use: add up probabilities per sheet = expected confirmed candidates.
     fig, ax = plt.subplots(figsize=(5.6, 5.2))
-    mx = max(sh.n_real.max(), sh.expected_detector_raw.max()) * 1.08
-    ax.plot([0, mx], [0, mx], color=style.MUTED, ls="--", lw=1)
-    for name, col, lab in [("detector_raw", style.CLAY, "raw confidence"),
-                           ("reranker_isotonic", style.LEAF, "calibrated re-ranker")]:
+    mx = max(sh.n_real.max(), sh[f"expected_{raw}"].max()) * 1.08
+    ax.plot([0, mx], [0, mx], color=style.LIGHT, lw=1.2)
+    for name, col, lab in ((raw, style.CLAY, "sum of raw scores"),
+                           (cal, style.TEAL, "sum of calibrated probabilities")):
+        ax.scatter(sh.n_real, sh[f"expected_{name}"], s=26, color=col, alpha=0.9, lw=0)
         c = res["sheet_counts"][name]
-        ax.scatter(sh.n_real, sh[f"expected_{name}"], s=22, color=col, alpha=0.85,
-                   label=f"{lab}: MAE {c['sheet_mae']:.1f} sites/sheet, bias {c['sheet_bias']:+.1f}")
-    ax.set(xlim=(0, mx), ylim=(0, mx), xlabel="real sites on the sheet (after review)",
-           ylabel="expected sites = sum of probabilities",
-           title="Estimating a sheet before anyone opens it")
-    ax.legend(loc="upper left", fontsize=8.5)
+        ax.text(0.03, 0.97 if name == raw else 0.89,
+                f"{lab}: {c['total_expected']:.0f}",
+                transform=ax.transAxes, color=col, fontsize=10, va="top")
+    ax.text(0.03, 0.81, f"candidates actually confirmed: {int(sh.n_real.sum())}", transform=ax.transAxes,
+            fontsize=10, va="top")
+    ax.set(xlim=(0, mx), ylim=(0, mx), xlabel="candidates confirmed on a map sheet",
+           ylabel="confirmations the model expects on that sheet")
+    ax.set_title("How many candidates on a sheet will an interpreter confirm?")
     style.save(fig, fig_dir / "sheet_counts.png")
 
 

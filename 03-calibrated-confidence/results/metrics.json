@@ -148,6 +148,12 @@
       "sheet_mae": 25.90765283887203,
       "sheet_bias": 25.90765283887203
     },
+    "detector_platt": {
+      "total_expected": 319.05146816826834,
+      "total_real": 317,
+      "sheet_mae": 3.8514655973980543,
+      "sheet_bias": 0.07890262185647405
+    },
     "detector_isotonic": {
       "total_expected": 318.2120855563304,
       "total_real": 317,

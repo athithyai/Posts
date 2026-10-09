@@ -10,7 +10,7 @@ Every experiment follows the same structure: context, hypothesis, data, method, 
 |---|---|---|---|
 | [01](01-embeddings-vs-random-forest/) | ECCV 2026: *"I wish there were an embedding better than a random forest"* | Does a precomputed Sentinel-2 foundation-model embedding beat a random forest on raw Sentinel-2, for CBS land-use classes? | Yes, modestly: a linear model on the embedding scores macro-F1 0.592 vs 0.551 (paired +0.041, 95% CI +0.006 to +0.066), and needs 20x fewer labels |
 | [02](02-diffusion-masks-vs-sam/) | Diffuse2Seg: *diffusion models can segment anything without supervision* | Do diffusion self-attention masks find Dutch construction sites and buildings better than SAM? | *running*: benchmark published, test runs on the GPU |
-| [03](03-calibrated-confidence/) | Google ALU: one confidence per mapped field | Does my construction detector's 0.8 mean 80%? | No: 0.458 calibration error. Two parameters fix it, and summed probabilities count sites to within 0.4% |
+| [03](03-calibrated-confidence/) | Google ALU: one confidence per mapped field | Does my construction detector's 0.8 mean 80%? | No: when it said 0.8 it was right about 40% of the time. Two parameters fix it: summed scores predicted 991 confirmations, calibrated ones 319, actual 317 |
 
 ## What is and isn't in here
 
@@ -28,7 +28,7 @@ conda create -n posts python=3.11 && conda activate posts
 pip install -r requirements.txt
 ```
 
-Each folder's README has its exact commands. Everything was run on one Windows laptop with an RTX 5070 (8 GB), one GPU job at a time.
+Each folder's README has its exact commands. Every figure is drawn by the experiment's own Python script in one shared style ([`common/style.py`](common/style.py)): white background, Space Grotesk (bundled, OFL), teal for the thing the post is about, clay for the baseline or the problem, and greys for context. Everything was run on one Windows laptop with an RTX 5070 (8 GB), one GPU job at a time.
 
 ## Licence
 

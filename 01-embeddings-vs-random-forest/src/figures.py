@@ -1,6 +1,9 @@
 """Figures for experiment 01, from results/ and data/maps.npz.
 
-  python src/figures.py --spheer <...>/markermeer_31UFU_2020_ov1.npz --s2 data/s2_2020_scenes.npz
+White background, greys, one accent colour (the embedding). Lines are labelled
+directly; no legends where a label next to the line will do.
+
+  python src/figures.py --s2 data/s2_2020_scenes.npz
 """
 import argparse
 import json
@@ -16,11 +19,9 @@ import pandas as pd
 from matplotlib.colors import ListedColormap
 
 HERE = Path(__file__).resolve().parent.parent
-LABEL = {"rf_s2": "Random forest · Sentinel-2 features", "linear_s2": "Linear · Sentinel-2 features",
-         "rf_spheer": "Random forest · Spheer embedding", "linear_spheer": "Linear · Spheer embedding",
-         "knn_spheer": "k-NN · Spheer embedding", "rf_both": "Random forest · both"}
-COLOR = {"rf_s2": style.CLAY, "linear_s2": "#d39a8c", "rf_spheer": style.TEAL,
-         "linear_spheer": style.LEAF, "knn_spheer": "#8fb592", "rf_both": style.INK}
+NAME = {"linear_s2": "Linear model on Sentinel-2 features", "knn_spheer": "Nearest neighbours on the embedding",
+        "rf_spheer": "Random forest on the embedding", "rf_both": "Random forest on both",
+        "linear_spheer": "Linear model on the embedding"}
 
 
 def stretch(x, lo=2, hi=98):
@@ -28,141 +29,123 @@ def stretch(x, lo=2, hi=98):
     return np.clip((x - a) / (b - a + 1e-9), 0, 1)
 
 
+def clean(ax):
+    ax.set_xticks([]), ax.set_yticks([])
+    for s in ax.spines.values():
+        s.set_visible(False)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--spheer", required=True)
     ap.add_argument("--s2", required=True)
     a = ap.parse_args()
     style.apply()
     res = json.loads((HERE / "results" / "metrics.json").read_text())
     fig_dir = HERE / "figures"
+    for old in ("macro_f1.png", "spheer_pca.png"):          # replaced by simpler figures
+        (fig_dir / old).unlink(missing_ok=True)
 
-    # 1. Headline bars with block-bootstrap CIs.
-    order = sorted(res["models"], key=lambda m: res["models"][m]["macro_f1"])
-    fig, ax = plt.subplots(figsize=(7, 3.6))
-    for i, m in enumerate(order):
-        r = res["models"][m]
-        lo, hi = r["macro_f1_ci95"]
-        ax.barh(i, r["macro_f1"], color=COLOR[m], height=0.62)
-        ax.errorbar(r["macro_f1"], i, xerr=[[r["macro_f1"] - lo], [hi - r["macro_f1"]]],
-                    color=style.INK, capsize=3, lw=1)
-        ax.text(hi + 0.01, i, f"{r['macro_f1']:.3f}", va="center", fontsize=9)
-    ax.set_yticks(range(len(order)), [LABEL[m] for m in order])
-    ax.set_xlim(0, min(1, max(res["models"][m]["macro_f1_ci95"][1] for m in order) + 0.12))
-    ax.set_xlabel(f"macro-F1 over {len(res['classes'])} CBS land-use classes (95% CI, 1 km block bootstrap)")
-    ax.set_title("Same pixels, same year, same labels")
-    ax.grid(axis="y", visible=False)
-    style.save(fig, fig_dir / "macro_f1.png")
-
-    # 2. Label efficiency.
-    p = HERE / "results" / "label_efficiency.csv"
-    if p.exists():
-        c = pd.read_csv(p)
-        fig, ax = plt.subplots(figsize=(6.6, 4.2))
-        for m in ("rf_s2", "rf_spheer", "linear_spheer", "knn_spheer"):
-            g = c[c.model == m].groupby("per_class").macro_f1
-            mu, sd = g.mean(), g.std()
-            ax.plot(mu.index, mu.values, marker="o", ms=4, color=COLOR[m], label=LABEL[m], lw=2)
-            ax.fill_between(mu.index, mu - sd, mu + sd, color=COLOR[m], alpha=0.15, lw=0)
-        ax.set_xscale("log")
-        ax.set(xlabel="labelled pixels per class (log scale)", ylabel="macro-F1",
-               title="How many labels does each approach need?")
-        ax.legend(fontsize=8.5, loc="lower right")
-        style.save(fig, fig_dir / "label_efficiency.png")
-
-    # 3. Per-class difference: where does the embedding help or hurt?
-    pc = pd.read_csv(HERE / "results" / "per_class_f1.csv")
-    w = pc.pivot(index="class", columns="model", values="f1")
-    d = (w["linear_spheer"] - w["rf_s2"]).sort_values()
-    px = {res["class_names"][str(k)] if str(k) in res["class_names"] else k: v
-          for k, v in res["class_pixels"].items()}
-    fig, ax = plt.subplots(figsize=(6.8, 0.32 * len(d) + 1.2))
-    ax.barh(range(len(d)), d.values, color=[style.LEAF if v > 0 else style.CLAY for v in d.values], height=0.65)
-    ax.set_yticks(range(len(d)), [f"{n}  ({px.get(n, 0):,} px)" for n in d.index], fontsize=8.5)
+    # 1. The honest comparison: paired difference from the random-forest baseline.
+    d = res["paired_vs_rf_s2"]
+    order = sorted(d, key=lambda m: d[m]["delta"])
+    fig, ax = plt.subplots(figsize=(7.2, 3.2))
     ax.axvline(0, color=style.INK, lw=0.8)
-    ax.set_xlabel("F1(linear on Spheer) − F1(random forest on Sentinel-2)")
-    ax.set_title("Per class: green = embedding wins")
-    ax.grid(axis="y", visible=False)
+    for i, m in enumerate(order):
+        lo, hi = d[m]["ci95"]
+        col = style.ACCENT if lo > 0 else style.GREY
+        ax.plot([lo, hi], [i, i], color=col, lw=2.2, solid_capstyle="round")
+        ax.plot(d[m]["delta"], i, "o", color=col, ms=7)
+        ax.text(hi + 0.004, i, f"{d[m]['delta']:+.3f}", va="center", fontsize=9, color=col)
+    ax.set_yticks(range(len(order)), [NAME[m] for m in order])
+    ax.tick_params(axis="y", length=0)
+    ax.spines["left"].set_visible(False)
+    ax.set_xlabel("difference in macro-F1 from a random forest on Sentinel-2 features (95% CI)")
+    ax.set_title("All five alternatives score higher; three of them reliably")
+    ax.text(0.0, -1.25, "random forest baseline: macro-F1 "
+            f"{res['models']['rf_s2']['macro_f1']:.3f}", fontsize=8.5, color=style.GREY, ha="center")
+    style.save(fig, fig_dir / "paired_difference.png")
+
+    # 2. Labels needed: the baseline vs the simplest use of the embedding.
+    c = pd.read_csv(HERE / "results" / "label_efficiency.csv")
+    g = c.groupby(["model", "per_class"]).macro_f1.mean().unstack(0)
+    fig, ax = plt.subplots(figsize=(6.6, 4.0))
+    for m, col, lab in (("rf_s2", style.CLAY, "random forest,\nSentinel-2 features"),
+                        ("linear_spheer", style.ACCENT, "linear model,\nembedding")):
+        ax.plot(g.index, g[m], color=col, lw=2.4, marker="o", ms=4)
+        ax.text(g.index[-1] * 1.15, g[m].iloc[-1], lab, color=col, va="center", fontsize=9.5)
+    ax.plot([50, 1000], [g["rf_s2"][1000]] * 2, color=style.INK, lw=0.8, ls=":")
+    ax.plot([50], [g["linear_spheer"][50]], "o", ms=10, mfc="none", mec=style.INK, mew=1)
+    ax.text(160, g["rf_s2"][1000] - 0.022,
+            f"50 labels per class on the embedding ({g['linear_spheer'][50]:.3f})\n"
+            f"beat 1,000 per class on Sentinel-2 ({g['rf_s2'][1000]:.3f})", fontsize=8.5, ha="center")
+    ax.set_xscale("log")
+    ax.set_xticks([5, 10, 25, 50, 100, 250, 1000], ["5", "10", "25", "50", "100", "250", "1,000"])
+    ax.set_xlim(4, 6000)
+    ax.set(xlabel="labelled pixels per class", ylabel="macro-F1 (mean of 5 draws)")
+    ax.set_title("The gap is steady: it does not grow when labels are scarce")
+    style.save(fig, fig_dir / "label_efficiency.png")
+
+    # 3. Per class.
+    pc = pd.read_csv(HERE / "results" / "per_class_f1.csv").pivot(index="class", columns="model", values="f1")
+    delta = (pc["linear_spheer"] - pc["rf_s2"]).sort_values()
+    fig, ax = plt.subplots(figsize=(6.6, 0.34 * len(delta) + 1.0))
+    ax.barh(range(len(delta)), delta.values, height=0.6,
+            color=[style.TEAL if v > 0 else style.CLAY for v in delta.values])
+    ax.set_yticks(range(len(delta)), delta.index, fontsize=9)
+    ax.tick_params(axis="y", length=0)
+    ax.axvline(0, color=style.INK, lw=0.8)
+    ax.spines["left"].set_visible(False)
+    for i, v in enumerate(delta.values):
+        if abs(v) > 0.03:
+            ax.text(v + (0.006 if v > 0 else -0.006), i, f"{v:+.2f}", va="center",
+                    ha="left" if v > 0 else "right", fontsize=8.5)
+    ax.set_xlim(min(delta.min() - 0.06, -0.05), delta.max() + 0.05)
+    ax.set_xlabel("F1 of the embedding minus F1 of the forest")
+    ax.set_title("It helps where use and layout matter, and hurts on wet nature")
     style.save(fig, fig_dir / "per_class_delta.png")
 
-    # 4. Maps.
+    # 4. One map: where the embedding fixed or broke the forest's answer.
     mp = np.load(HERE / "data" / "maps.npz")
     lab, valid = mp["label"], mp["valid"]
+    rf_ok = (mp["rf_s2"] == lab) & valid
+    em_ok = (mp["linear_spheer"] == lab) & valid
+    land = valid & (lab != 70)
+    h, w = lab.shape
+    rr, cc = np.nonzero(land[h // 3:, w // 3:])
+    crop = (slice(max(rr.min() + h // 3 - 5, 0), None), slice(max(cc.min() + w // 3 - 5, 0), None))
+    code = np.zeros(lab.shape, np.uint8)                   # 0 not scored (white)
+    code[valid & rf_ok & em_ok] = 1                        # both right: very light grey
+    code[valid & ~rf_ok & ~em_ok] = 2                      # both wrong: mid grey
+    code[valid & rf_ok & ~em_ok] = 3                       # embedding broke it: black
+    code[valid & ~rf_ok & em_ok] = 4                       # embedding fixed it: accent
+    cmap = ListedColormap([style.WHITE, style.FAINT, "#c3cacb", style.CLAY, style.TEAL])
+
     z = np.load(a.s2, allow_pickle=True)
-    months = np.array([int(d[5:7]) for d in z["dates"]])
+    months = np.array([int(dd[5:7]) for dd in z["dates"]])
     x = z["x"][(months >= 6) & (months <= 8)].astype(np.float32)
     rgb = np.nanmedian(x[:, [2, 1, 0]], axis=0).transpose(1, 2, 0)
     rgb = np.dstack([stretch(rgb[..., i]) for i in range(3)])
-    E = np.load(a.spheer, allow_pickle=True)["a"].astype(np.float32)
-    f = E.reshape(100, -1).T
-    f = f - np.nanmean(f, 0)
-    _, _, vt = np.linalg.svd(np.nan_to_num(f[::7]), full_matrices=False)
-    pca = (np.nan_to_num(f) @ vt[:3].T).reshape(*E.shape[1:], 3)
-    pca = np.dstack([stretch(pca[..., i]) for i in range(3)])
 
-    classes = res["classes"]
-    rng = np.random.default_rng(3)
-    cols = rng.uniform(0.25, 0.9, (len(classes), 3))
-    named = {20: "#b5523b", 51: "#d9c77c", 60: "#2f6b3a", 62: "#7fb38a", 70: "#2f6f8f", 78: "#6fa8c7",
-             40: "#8cc56b", 24: "#7a6c8f", 11: "#555555", 34: "#e3913b", 35: "#c1a58c", 61: "#b9c98a",
-             75: "#4f93b8", 43: "#a7d08c", 41: "#b8d86b", 21: "#c97a6a", 22: "#a86a7a", 23: "#bd8aa0"}
-    for i, c in enumerate(classes):
-        if c in named:
-            cols[i] = [int(named[c][k:k + 2], 16) / 255 for k in (1, 3, 5)]
-    cmap = ListedColormap(np.vstack([[0.96, 0.96, 0.94], cols]))
-    idx = {c: i + 1 for i, c in enumerate(classes)}
-    to_idx = np.vectorize(lambda v: idx.get(int(v), 0))
-
-    def show(arr):
-        return np.where(valid, to_idx(arr), 0)
-
-    # The scene is ~90% open water; the land is in the south-east corner.
-    land = valid & (lab != 70)
-    rr, cc = np.nonzero(land[land.shape[0] // 3:, land.shape[1] // 3:])
-    r0, c0 = rr.min() + land.shape[0] // 3, cc.min() + land.shape[1] // 3
-    crop = (slice(max(r0 - 5, 0), None), slice(max(c0 - 5, 0), None))
-    sub = valid[crop]
-    f1c = {m: f1_crop(lab[crop][sub], mp[m][crop][sub], classes) for m in ("rf_s2", "linear_spheer")}
-
-    fig, axs = plt.subplots(1, 5, figsize=(18, 4.4), gridspec_kw={"width_ratios": [1.1, 1, 1, 1, 1]})
-    axs[0].imshow(rgb)
-    h, w = lab.shape
-    axs[0].add_patch(plt.Rectangle((crop[1].start, crop[0].start), w - crop[1].start, h - crop[0].start,
-                                   fill=False, ec="white", lw=1.5))
-    axs[0].set_title("Full scene, summer 2020\n(box = zoom)", fontsize=10)
-    panels = [(rgb[crop], "Zoom: Lelystad\n(Sentinel-2)", None),
-              (show(lab)[crop], "CBS NBBG2020 label\n(pure pixels)", cmap),
-              (show(mp["rf_s2"])[crop], f"RF on Sentinel-2\nmacro-F1 in zoom {f1c['rf_s2']:.2f}", cmap),
-              (show(mp["linear_spheer"])[crop],
-               f"Linear on Spheer\nmacro-F1 in zoom {f1c['linear_spheer']:.2f}", cmap)]
-    for ax, (im, t, cm) in zip(axs[1:], panels):
-        ax.imshow(im, cmap=cm, vmin=0, vmax=len(classes), interpolation="nearest") if cm else ax.imshow(im)
-        ax.set_title(t, fontsize=10)
+    fig, axs = plt.subplots(1, 2, figsize=(10, 6))
+    axs[0].imshow(rgb[crop])
+    axs[0].set_title("Lelystad, Sentinel-2 summer 2020", fontsize=10.5)
+    axs[1].imshow(code[crop], cmap=cmap, vmin=0, vmax=4, interpolation="nearest")
+    sub = code[crop]
+    fixed, broke = int((sub == 4).sum()), int((sub == 3).sum())
+    axs[1].set_title(f"Embedding vs forest, pixel by pixel", fontsize=10.5)
     for ax in axs:
-        ax.set_xticks([]), ax.set_yticks([])
-        ax.grid(False)
-        for s in ax.spines.values():
-            s.set_visible(False)
-    from matplotlib.patches import Patch
-    handles = [Patch(color=cmap(i + 1), label=res["class_names"][str(c)]) for i, c in enumerate(classes)]
-    fig.legend(handles=handles, loc="lower center", ncol=6, fontsize=8.5, bbox_to_anchor=(0.5, -0.08))
-    fig.text(0.5, -0.12, "11.2 × 11.5 km at 20 m. Predictions are out-of-fold: every pixel is predicted by a "
-             "model that never saw its 1 km block.", ha="center", fontsize=9)
+        clean(ax)
+    keys = [(style.TEAL, f"embedding right, forest wrong ({fixed:,} px)"),
+            (style.CLAY, f"forest right, embedding wrong ({broke:,} px)"),
+            ("#c3cacb", "both wrong"), (style.FAINT, "both right")]
+    for k, (col, t) in enumerate(keys):
+        axs[1].add_patch(plt.Rectangle((1.03, 0.92 - k * 0.07), 0.04, 0.04, transform=axs[1].transAxes,
+                                       color=col, clip_on=False, ec="#cccccc", lw=0.5))
+        axs[1].text(1.09, 0.94 - k * 0.07, t, transform=axs[1].transAxes, va="center", fontsize=9)
+    axs[1].text(1.03, 0.55, "The lake is light grey: both\nmodels get water right.\nWhite: mixed pixels at class\n"
+                "borders, not scored.\nEvery prediction is out-of-fold.",
+                transform=axs[1].transAxes, fontsize=8.5, color=style.GREY, va="top")
     style.save(fig, fig_dir / "maps.png")
-
-    # Spheer embedding as false colour, on its own.
-    fig, ax = plt.subplots(figsize=(4.6, 4.6))
-    ax.imshow(pca)
-    ax.set_title("Spheer 2020 embedding, first 3 principal components", fontsize=10)
-    ax.set_xticks([]), ax.set_yticks([])
-    ax.grid(False)
-    style.save(fig, fig_dir / "spheer_pca.png")
-
-
-def f1_crop(y, p, classes):
-    from sklearn.metrics import f1_score
-    present = [c for c in classes if (y == c).any()]
-    return f1_score(y, p, labels=present, average="macro", zero_division=0)
 
 
 if __name__ == "__main__":
