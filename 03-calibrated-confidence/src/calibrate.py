@@ -1,11 +1,11 @@
-"""Does a confidence of 0.8 mean 80%? Calibration of BT24 candidate scores.
+"""Does a confidence of 0.8 mean 80%? Calibration of construction-site candidate scores.
 
-Input is the BT24 candidate table for the 2024 test sheets (one row per
+Input is the construction-site detector's candidate table for the 2024 test sheets (one row per
 candidate polygon), auto-labelled by overlap with interpreter-verified active
 construction sites. It is CBS-internal, so it is not in this repository; every
 number in results/ is an aggregate of it.
 
-  python src/calibrate.py --candidates <BT24>/data/cand_2024_test_feat_scored.csv
+  python src/calibrate.py --candidates <detector>/data/cand_2024_test_feat_scored.csv
 
 Columns used: confidence (detector), rerank_score (out-of-fold re-ranker),
 y (1 = real site), ignore (braak / below-MMU, excluded), blad_nr (map sheet).
@@ -26,7 +26,7 @@ sys.path.insert(0, str(HERE.parent))
 from common import style  # noqa: E402
 
 SEED = 24
-DETECTION_THRESHOLD = 0.30   # pixel threshold the candidates were cut at (BT24 rerank.sh)
+DETECTION_THRESHOLD = 0.30   # pixel threshold the candidates were cut at (the detector's inference run)
 N_FOLDS = 5
 N_BINS = 10
 N_BOOT = 2000
@@ -34,7 +34,7 @@ N_BOOT = 2000
 
 def sheet_folds(sheets, n=N_FOLDS, seed=SEED):
     """Whole map sheets per fold: neighbouring sites share imagery and context,
-    so a random split leaks. Same rule as the BT24 pipeline."""
+    so a random split leaks. Same rule as the detector's own validation."""
     u = np.array(sorted(pd.unique(sheets)))
     rng = np.random.default_rng(seed)
     rng.shuffle(u)
@@ -223,7 +223,7 @@ def figures(scores, y, rel, sh, res, fig_dir):
     ax.set_title("When the model said 0.8, it was right about 40% of the time")
     style.save(fig, fig_dir / "reliability.png")
 
-    # 2. Why: every candidate already cleared the 0.30 pixel threshold (BT24 rerank.sh).
+    # 2. Why: every candidate already cleared the 0.30 pixel threshold (the detector's inference run).
     fig, ax = plt.subplots(figsize=(6.4, 3.2))
     bins = np.linspace(0, 1, 41)
     ax.hist(scores[raw][y == 0], bins, color=style.LIGHT, label="not confirmed")

@@ -1,37 +1,31 @@
 My model said 0.8. It meant 0.4.
 
-This week a post about Google's ALU went past my feed. Every field it maps comes with an ID, an area, and a confidence between 0 and 1.
+Every polygon my construction-site model draws on Dutch aerial photos comes with a confidence between 0 and 1. I put that column there myself, and I used it to sort the list.
 
-Good design. And it made me a bit uncomfortable, because my own construction-site detector for the Dutch land-use map does the same thing, and I had never checked whether its number meant anything.
+I never asked what it means. So this week I checked.
 
-So I checked.
+The model: a frozen DINOv2 vision transformer with a small trained decoder (1.2M parameters). It was trained on the 2022 land-use map and run on 2024 imagery it had never seen.
 
-1,470 candidates on 26 map sheets, each one compared with what photo-interpreters actually confirmed.
+The test: 1,470 candidates on 26 map sheets, each compared with what photo-interpreters actually confirmed.
 
-The average confidence was 0.67.
-The share that turned out to be real was 22%.
-When the model said 0.8, it was right about 40% of the time.
+1. Average confidence: 0.67. Share confirmed: 22%.
+2. When the model said 0.8, it was right about 40% of the time.
+3. Adding up the scores predicted 991 confirmed candidates. There were 317.
 
-The cause was in my own code. A candidate is built from pixels that already passed a threshold, and the score is their average. So it can't be low. It's a fine way to sort a list. It was never a probability.
+The cause was in my own code. A polygon is built from pixels that already passed a 0.30 threshold, and the score is their average, so it can't be low. A fine way to sort a list. Never a probability.
 
-The fix took two numbers. A simple calibration, fitted on some map sheets and tested on others:
-– calibration error 0.46 → 0.02
-– ranking unchanged
+The fix: two parameters. Platt scaling, fitted on some map sheets and tested on others.
+→ calibration error 0.46 → 0.02
+→ ranking unchanged (AUC 0.823 → 0.819)
+→ summed probabilities: 319 predicted, 317 confirmed
 
-Here is why I care. In a statistics office, someone will add that column up.
+The surprise: the second stage of the model, a gradient-boosted re-ranker, was already calibrated. It had been trained to output probabilities. The detector's score was assembled by hand.
 
-Adding up my original scores predicted 991 confirmed candidates. The interpreters confirmed 317.
-Adding up the calibrated ones predicted 319.
+What I'm taking away: a confidence column is a promise to whoever reads the table. In a statistics office, someone will add it up.
 
-Same model, same candidates. One number you can plan with, one you can't.
+Next: refit those two parameters every year, because a calibrator drifts like any other model.
 
-What I'm taking away: a confidence column is a promise to whoever reads the table. I used mine as a sort key and never asked what it promised to everyone else.
-
-Next: refit those two numbers every year, because a calibrator drifts just like a model does.
-
-Full story, figures and code (the labels are CBS-internal and stay in-house):
+Full write-up, figures and code (the labels are CBS-internal and stay in-house):
 https://github.com/athithyai/Posts/tree/main/03-calibrated-confidence
-
-If you publish a confidence column: do you know what your 0.8 means?
 
 #EarthObservation #GeoAI #OfficialStatistics #MachineLearning

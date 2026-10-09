@@ -2,12 +2,12 @@
 stable id, one probability you can add up.
 
 ALU gives every mapped feature a plus code of its centroid as id, an area and
-a 0-1 confidence. This script does the same for BT24 construction candidates,
+a 0-1 confidence. This script does the same for construction-site candidates,
 with the confidence replaced by a calibrated probability (isotonic, fitted on
 the 2024 test sheets), and writes a GeoJSON a statistician can sum.
 
-  python src/alu_schema.py --candidates <BT24>/data/cand_2024_test_feat_scored.csv \
-      --geometry <BT24>/data/cand_2024_test.gpkg --out data/candidates_alu.geojson
+  python src/alu_schema.py --candidates <detector>/data/cand_2024_test_feat_scored.csv \
+      --geometry <detector>/data/cand_2024_test.gpkg --out data/candidates_alu.geojson
 The output contains model outputs over CBS-internal sheets; it stays local.
 """
 import argparse
@@ -25,9 +25,9 @@ SCHEMA = {
     "id": "Open Location Code (plus code, 10 digits, ~14 m) of the polygon centroid",
     "feature_type": "always 'construction_site_candidate'",
     "area_m2": "polygon area in EPSG:28992",
-    "p_site": "calibrated probability that an interpreter confirms an active site (0-1); "
-              "sums to the expected number of sites",
-    "score_raw": "detector score as produced by BT24 (not a probability)",
+    "p_site": "calibrated probability that an interpreter confirms this candidate as an active "
+              "site (0-1); sums to the expected number of confirmed candidates",
+    "score_raw": "raw detector score (a ranking signal, not a probability)",
     "imagery_year": "PDOK luchtfoto year the candidate was detected on",
     "model": "detector + calibrator version",
 }
@@ -76,7 +76,7 @@ def main():
         "p_site": np.round(iso.predict(X.rerank_score), 3),
         "score_raw": X.confidence.round(3),
         "imagery_year": 2024,
-        "model": "bt24-detector+reranker / isotonic-2024test",
+        "model": "construction-detector+reranker / isotonic-2024test",
     }, geometry=g.geometry.to_crs(4326).values, crs=4326)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     out.to_file(a.out, driver="GeoJSON")

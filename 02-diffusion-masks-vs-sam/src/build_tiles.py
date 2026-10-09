@@ -11,7 +11,7 @@ CBS-internal set of interpreter-verified *active* construction sites can be
 attached for scoring only (--internal); it is never written to the public set.
 
   python src/build_tiles.py --nbbg2022 <...>/CBS_Publicatiebestand_NBBG2022_v1_def.gpkg \
-      [--internal <BT24>/data/labels.gpkg] --n 200
+      [--internal <detector>/data/labels.gpkg] --n 200
 """
 import argparse
 import io
@@ -99,7 +99,7 @@ def objects_in(gdf, tile, min_m2):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--nbbg2022", required=True)
-    ap.add_argument("--internal", default="", help="BT24 labels.gpkg (CBS-internal, scoring only)")
+    ap.add_argument("--internal", default="", help="labels.gpkg of the construction-site detector (CBS-internal, scoring only)")
     ap.add_argument("--n", type=int, default=200)
     a = ap.parse_args()
     rng = np.random.default_rng(SEED)

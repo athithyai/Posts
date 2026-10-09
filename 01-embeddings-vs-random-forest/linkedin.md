@@ -1,33 +1,24 @@
 "I just wish there would be an embedding which is better than a random forest."
 
-That line from an ECCV 2026 reflection has been in my head all week. It sums up three years of geospatial foundation models: they win the benchmarks, and then practitioners go back to a random forest because it just works.
+That sentence came out of a conversation at ECCV this year, and I've heard versions of it for three years. We keep building geospatial foundation models that win the benchmarks, and practitioners keep going back to a random forest because it just works.
 
-So I tried it on my own work.
+So I tested it on the kind of map I work with: the official CBS land-use map. Lelystad coast, 2020, 20 m pixels.
 
-One window of the Dutch coast near Lelystad, 2020, at 20 m. The official CBS land-use map as the labels. Two contenders:
+In one corner: a random forest (500 trees) on 46 hand-built features from 56 clear Sentinel-2 dates. Seasonal band medians and NDVI. The recipe every course teaches.
 
-A random forest on 46 hand-built features from 56 clear Sentinel-2 dates. The recipe every course teaches.
-
-A plain linear model on a precomputed foundation-model embedding (Spheer). 100 numbers per pixel. Nothing else.
+In the other: a logistic regression on the Spheer foundation-model embedding. 100 numbers per pixel, precomputed. Nothing else.
 
 Same pixels, same labels, whole 1 km blocks held out for testing.
 
-The embedding won. Macro-F1 0.592 against 0.551.
+1. The embedding won. Macro-F1 0.592 vs 0.551. The paired 95% interval stays above zero, so the win is real. It's four points, not a leap.
+2. The win came from the inputs, not the model. A linear model on the Sentinel-2 features did no better than the forest.
+3. The gap did not grow when labels got scarce. I was sure it would. But 50 labels per class on the embedding still beat 1,000 on the forest.
+4. It's not better everywhere. Much better on sports grounds (+0.25 F1) and parks (+0.13), classes you recognise by layout. Worse on wet nature (−0.14), where seasonal flooding is the signal.
 
-Real (the paired 95% interval stays above zero), but modest: four points.
+So, is there an embedding better than a random forest? Here, yes. And the best way to use it was the simplest one: a straight line, no GPU.
 
-What I didn't expect:
+Two caveats. It's one window, mostly lake. And "compute-equitable" moved my cost from processing to downloading.
 
-The win came from the inputs, not the model. A linear model on the Sentinel-2 features did no better than the forest.
-
-The gap didn't grow when labels got scarce. I was sure it would. But the embedding with 50 labels per class still beat the forest with 1,000. That's twenty times less labelling.
-
-And it isn't better everywhere. It's much better on sports grounds, parks and shops: classes you recognise by layout, not colour. It's worse on wet nature, where the seasonal flooding is the signal.
-
-So yes, here there is an embedding better than a random forest. And the best way to use it was the simplest one: no fine-tuning, no GPU.
-
-Two honest caveats. It's one window, mostly lake. And "compute-equitable" moved my cost from processing to downloading: one tile-year is about 50 GB.
-
-Full story, figures and code: https://github.com/athithyai/Posts/tree/main/01-embeddings-vs-random-forest
+Full write-up, figures and code: https://github.com/athithyai/Posts/tree/main/01-embeddings-vs-random-forest
 
 #ECCV2026 #EarthObservation #FoundationModels #GeoAI
