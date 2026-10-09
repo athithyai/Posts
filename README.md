@@ -9,7 +9,7 @@ Every experiment follows the same structure: context, hypothesis, data, method, 
 | # | Prompted by | Question on my data | Answer in one line |
 |---|---|---|---|
 | [01](01-embeddings-vs-random-forest/) | ECCV 2026: *"I wish there were an embedding better than a random forest"* | Does a precomputed Sentinel-2 foundation-model embedding beat a random forest on raw Sentinel-2, for CBS land-use classes? | Yes, modestly: a linear model on the embedding scores macro-F1 0.592 vs 0.551 (paired +0.041, 95% CI +0.006 to +0.066), and needs 20x fewer labels |
-| [02](02-diffusion-masks-vs-sam/) | Diffuse2Seg: *diffusion models can segment anything without supervision* | Do diffusion self-attention masks find Dutch construction sites and buildings better than SAM? | *running*: benchmark published, test runs on the GPU |
+| [02](02-diffusion-masks-vs-sam/) | Diffuse2Seg: *diffusion models can segment anything without supervision* | Do diffusion self-attention masks find Dutch construction sites and buildings better than SAM? | Only with SAM at its defaults. With looser filters SAM wins on construction sites too (AR@100 0.29 vs 0.25) and wins easily on buildings (0.29 vs 0.08) |
 | [03](03-calibrated-confidence/) | Google ALU: one confidence per mapped field | Does my construction detector's 0.8 mean 80%? | No: when it said 0.8 it was right about 40% of the time. Two parameters fix it: summed scores predicted 991 confirmations, calibrated ones 319, actual 317 |
 
 ## What is and isn't in here

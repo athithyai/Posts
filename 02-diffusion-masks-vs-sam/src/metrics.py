@@ -41,3 +41,24 @@ def ar_ci(tiles, gt_key, k, n=1000, seed=24):
         b = np.concatenate([per[t] for t in rng.choice(ids, len(ids), replace=True)])
         vals.append(np.mean([(b >= th).mean() for th in THRESH]))
     return [float(np.percentile(vals, 2.5)), float(np.percentile(vals, 97.5))]
+
+
+def paired_ar_delta(tiles_a, tiles_b, gt_key, k, n=1000, seed=24):
+    """AR@k(a) - AR@k(b) with the same resampled tiles for both methods."""
+    ids = [t for t in tiles_a if t in tiles_b and tiles_a[t]["iou"].get(gt_key) is not None
+           and tiles_a[t]["iou"][gt_key].shape[1]]
+
+    def per(tiles, t):
+        m = tiles[t]["iou"][gt_key][:k]
+        return m.max(0) if len(m) else np.zeros(tiles[t]["iou"][gt_key].shape[1])
+
+    pa = {t: per(tiles_a, t) for t in ids}
+    pb = {t: per(tiles_b, t) for t in ids}
+    ar_of = lambda b: np.mean([(b >= th).mean() for th in THRESH])
+    rng = np.random.default_rng(seed)
+    d = []
+    for _ in range(n):
+        pick = rng.choice(ids, len(ids), replace=True)
+        d.append(ar_of(np.concatenate([pa[t] for t in pick])) - ar_of(np.concatenate([pb[t] for t in pick])))
+    full = ar_of(np.concatenate([pa[t] for t in ids])) - ar_of(np.concatenate([pb[t] for t in ids]))
+    return {"delta": float(full), "ci95": [float(np.percentile(d, 2.5)), float(np.percentile(d, 97.5))]}
