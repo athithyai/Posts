@@ -1,0 +1,67 @@
+model,code,class,f1
+rf_s2,20,residential,0.8176021553659631
+rf_s2,21,retail & catering,0.044444444444444446
+rf_s2,24,industry & business,0.6440343710381744
+rf_s2,40,park,0.509411050394657
+rf_s2,41,sports grounds,0.32664756446991405
+rf_s2,60,forest,0.8476249228871067
+rf_s2,61,dry nature,0.4932330827067669
+rf_s2,62,wet nature,0.8616550852811118
+rf_s2,70,IJsselmeer/Markermeer,0.9903947661349976
+rf_s2,75,recreational water,0.3672787979966611
+rf_s2,78,other inland water,0.1538079880922848
+linear_s2,20,residential,0.7872282361502775
+linear_s2,21,retail & catering,0.04777070063694268
+linear_s2,24,industry & business,0.6074726523653928
+linear_s2,40,park,0.5340114431023522
+linear_s2,41,sports grounds,0.3893687707641196
+linear_s2,60,forest,0.8591885441527446
+linear_s2,61,dry nature,0.4435483870967742
+linear_s2,62,wet nature,0.8403538331929233
+linear_s2,70,IJsselmeer/Markermeer,0.9889670846564081
+linear_s2,75,recreational water,0.46411483253588515
+linear_s2,78,other inland water,0.13082080086972278
+rf_spheer,20,residential,0.8433429811866859
+rf_spheer,21,retail & catering,0.0
+rf_spheer,24,industry & business,0.6533733952472002
+rf_spheer,40,park,0.5667506297229219
+rf_spheer,41,sports grounds,0.43376801647220314
+rf_spheer,60,forest,0.8797127468581688
+rf_spheer,61,dry nature,0.5792188651436994
+rf_spheer,62,wet nature,0.7896825396825397
+rf_spheer,70,IJsselmeer/Markermeer,0.9911875696461928
+rf_spheer,75,recreational water,0.42488038277511964
+rf_spheer,78,other inland water,0.18509803921568627
+linear_spheer,20,residential,0.8555514974433893
+linear_spheer,21,retail & catering,0.1830238726790451
+linear_spheer,24,industry & business,0.7034482758620689
+linear_spheer,40,park,0.6357308584686775
+linear_spheer,41,sports grounds,0.5743651753325272
+linear_spheer,60,forest,0.8882554161915621
+linear_spheer,61,dry nature,0.45612388549976535
+linear_spheer,62,wet nature,0.7198325970704488
+linear_spheer,70,IJsselmeer/Markermeer,0.9876452048626745
+linear_spheer,75,recreational water,0.36683673469387756
+linear_spheer,78,other inland water,0.1403109594235874
+knn_spheer,20,residential,0.847809442790302
+knn_spheer,21,retail & catering,0.006980802792321117
+knn_spheer,24,industry & business,0.6485490557346845
+knn_spheer,40,park,0.5044786814761734
+knn_spheer,41,sports grounds,0.4875239923224568
+knn_spheer,60,forest,0.8935447338618346
+knn_spheer,61,dry nature,0.4985056784219964
+knn_spheer,62,wet nature,0.8143265216435949
+knn_spheer,70,IJsselmeer/Markermeer,0.9874716964818074
+knn_spheer,75,recreational water,0.31114258734655337
+knn_spheer,78,other inland water,0.17535184480791174
+rf_both,20,residential,0.84776879032991
+rf_both,21,retail & catering,0.011583011583011582
+rf_both,24,industry & business,0.6765193370165746
+rf_both,40,park,0.5753254804711717
+rf_both,41,sports grounds,0.3946629213483146
+rf_both,60,forest,0.8974970202622169
+rf_both,61,dry nature,0.6177935943060499
+rf_both,62,wet nature,0.8769782654568474
+rf_both,70,IJsselmeer/Markermeer,0.9911362470080348
+rf_both,75,recreational water,0.42812303829252984
+rf_both,78,other inland water,0.16286485160657346

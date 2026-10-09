@@ -1,0 +1,21 @@
+# Data never leaves this machine through git:
+#  - CBS-internal labels and anything derived per-object from them
+#  - gated Spheer embeddings and large downloaded rasters
+#  - imagery tiles (rebuildable from the public PDOK WMS with build_tiles.py)
+**/data/
+**/model/
+*.npz
+*.pkl
+*.joblib
+*.gpkg
+*.parquet
+*.tif
+
+# Python / OS
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db
+**/hf/
+**/hf_dataset/
